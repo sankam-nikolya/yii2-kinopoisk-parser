@@ -482,7 +482,7 @@ class Kpparser {
 	}
 
 	private function purgeCache() {
-		$cacheDir = $this->cachedir;
+		$cacheDir = $this->cachedir . '/';
 
 		$thisdir = dir($cacheDir);
 		$now = time();
