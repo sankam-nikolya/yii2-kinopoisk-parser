@@ -137,7 +137,7 @@ class Kpparser {
 
 		$this->setCache('rating_'.$id, json_encode($result));
 
-		return $this->getCache('rating_'.$id);
+		return json_decode($this->getCache('rating_'.$id));
 
 	}
 
@@ -350,7 +350,7 @@ class Kpparser {
 
 		$this->setCache($id, json_encode($new));
 
-		return $this->getCache($id);
+		return json_decode($this->getCache($id));
 	}
 
 	public function search($title, $year = null, $type = self::MOVIE) {
