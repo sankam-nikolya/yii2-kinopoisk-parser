@@ -11,17 +11,17 @@ class Kpparser {
 	protected $login = false;
 	protected $parser;
 
-	protected $auth_url = 'http://www.kinopoisk.ru/level/30/';
-	protected $film_url = 'http://www.kinopoisk.ru/film/%s';
-	protected $trailers_url = 'http://www.kinopoisk.ru/film/%s/video/type/1/';
+	protected $auth_url = 'https://www.kinopoisk.ru/level/30/';
+	protected $film_url = 'https://www.kinopoisk.ru/film/%s/';
+	protected $trailers_url = 'https://www.kinopoisk.ru/film/%s/video/type/1/';
 	protected $poster_url = 'http://st.kp.yandex.net/images/film_big/%s.jpg';
-	protected $poster_sm_url = 'http://st.kp.yandex.net/images/sm_film/%s.jpg';
+	protected $poster_sm_url = 'https://st.kp.yandex.net/images/sm_film/%s.jpg';
 
-	protected $search_film_url = 'http://www.kinopoisk.ru/s/type/film/find/%s';
-	protected $search_film_year_url = 'http://www.kinopoisk.ru/s/type/film/find/%s/m_act[year]/%d/';
-	protected $search_serial_url = 'http://www.kinopoisk.ru/index.php?level=7&from=forma&result=adv&m_act%5Bfrom%5D=forma&m_act%5Bwhat%5D=content&m_act%5Bfind%5D=%s&m_act%5Bcontent_find%5D=serial';
+	protected $search_film_url = 'https://www.kinopoisk.ru/s/type/film/find/%s/';
+	protected $search_film_year_url = 'https://www.kinopoisk.ru/s/type/film/find/%s/m_act[year]/%d/';
+	protected $search_serial_url = 'https://www.kinopoisk.ru/index.php?level=7&from=forma&result=adv&m_act%5Bfrom%5D=forma&m_act%5Bwhat%5D=content&m_act%5Bfind%5D=%s&m_act%5Bcontent_find%5D=serial';
 
-	protected $rating_url = 'http://rating.kinopoisk.ru/%s.xml';
+	protected $rating_url = 'https://rating.kinopoisk.ru/%s.xml';
 	protected $months = [
 			1  => 'января',
 			2  => 'февраля',
@@ -150,8 +150,7 @@ class Kpparser {
 			return json_decode($results);
 		}
 
-		$this->parser->fetch(sprintf($this->film_url, $id));
-		$main_page = $this->parser->results;
+		$main_page = $this->getPage(sprintf($this->film_url, $id));
 		$main_page = iconv('windows-1251' , 'utf-8', $main_page);
 
 		$parse = [
@@ -232,7 +231,7 @@ class Kpparser {
 						}
 					}
 				} else if ($index == 'poster_url') {
-					$new[ $index ] = 'http://www.kinopoisk.ru' . $matches[1];
+					$new[ $index ] = 'https://www.kinopoisk.ru' . $matches[1];
 				} else if(in_array($index, ['budget', 'usa_charges', 'world_charges', 'rus_charges'])) {
 					$tmp = preg_replace('#\\n\s*#si', '', html_entity_decode(strip_tags($matches[1]), ENT_COMPAT | ENT_HTML401, 'UTF-8'));
 					$tmp = str_replace('$', '', $tmp);
@@ -274,8 +273,7 @@ class Kpparser {
 		$new['thumb_url'] = sprintf($this->poster_sm_url, $id);
 
 		if($this->parse_trailers) {
-			$this->parser->fetch(sprintf($this->trailers_url, $id));
-			$trailers_page = $this->parser->results;
+			$trailers_page = sprintf($this->trailers_url, $id);
 			$trailers_page = iconv('windows-1251' , 'utf-8', $trailers_page);
 
 			$trailers_parse = [
@@ -332,8 +330,7 @@ class Kpparser {
 
 			$main_trailer_url = array();
 			if (isset($trailer_page[0])) {
-				$this->parser->fetch('http://www.kinopoisk.ru' . $trailer_page[0]);
-				$main_trailer_page = $this->parser->results;
+				$main_trailer_page = $this->getPage('https://www.kinopoisk.ru' . $trailer_page[0]);
 				$main_trailer_page = iconv('windows-1251' , 'utf-8', $main_trailer_page);
 				//file_put_contents('main_trailer_'.$id.'.html', $main_trailer_page );
 
@@ -378,8 +375,7 @@ class Kpparser {
 			$url = sprintf($this->search_serial_url, $title);
 		}
 
-		$this->parser->fetch($url);
-		$search_page = $this->parser->results;
+		$search_page = $this->getPage($url);
 		$search_page = iconv('windows-1251' , 'utf-8', $search_page);
 
 		$search_page = preg_match_all('#Скорее всего, вы ищете:.*?<p class="name">.*?<a href="/level/1/film/(\d+)/sr/1/".*?class="js-serp-metrika".*?>(.*?)</a>.*?<span class="year">(\d{4})</span></p>#si', $search_page, $matches);
