@@ -56,7 +56,7 @@ class Kinopoisk
         $options = [
                 'login' => self::$login,
                 'pass' => self::$pass,
-                'use_cache' => self::$use_cache,
+                'usecache' => self::$use_cache,
                 'cache_dir' => self::cacheDir(self::$cache_dir),
                 'cache_expire' => self::$cache_expire,
                 'parse_trailers' => self::$parse_trailers
