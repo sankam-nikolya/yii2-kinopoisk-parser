@@ -284,7 +284,7 @@ class Kpparser {
 		$new['thumb_url'] = sprintf($this->poster_sm_url, $id);
 
 		if($this->parse_trailers) {
-			$trailers_page = sprintf($this->trailers_url, $id);
+			$trailers_page = $this->getPage(sprintf($this->trailers_url, $id));
 			$trailers_page = iconv('windows-1251' , 'utf-8', $trailers_page);
 
 			$trailers_parse = [
