@@ -173,6 +173,7 @@ class Kpparser {
 			'rus_charges' =>  '#сборы в России</td>.*?<a href="/film/[0-9]+/.*?/.*?/" title="">(.*?)</a>#si',
 			'world_premiere'=>'#премьера \(мир\)</td>[^<]*<td[^>]*>.*?<a[^>]*>(.*?)</a>#si',
 			'rus_premiere' => '#премьера \(РФ\)</td>[^<]*<td[^>]*>.*?<a[^>]*>(.*?)</a>#si',
+			'ua_premiere' => '#премьера \(Укр\.\)</td>[^<]*<td[^>]*>.*?<a[^>]*>(.*?)</a>#si',
 			'time' =>         '#id="runtime">(.*?)</td></tr>#si',
 			'age' =>          '#<div class=\"ageLimit(.*?)\">#si',
 			'description' =>  '#<span class=\"_reachbanner_\"><div class=\"brand_words\"[^>]*>(.*?)</div></span>#si',
@@ -242,7 +243,7 @@ class Kpparser {
 					$tmp = preg_replace('~\x{00a0}~siu',' ', $tmp);
 					$tmp = trim(preg_replace('/\s\s+/', ' ', $tmp));
 					$new[ $index ] = $tmp;
-				} else if ($index == 'rus_premiere' || $index == 'world_premiere') {
+				} else if ($index == 'rus_premiere' || $index == 'world_premiere' || $index == 'ua_premiere') {
 					$tmp = preg_replace('#\\n\s*#si', '', html_entity_decode(strip_tags($matches[1]), ENT_COMPAT | ENT_HTML401, 'UTF-8'));
 					$tmp = str_replace(' ', '.', $tmp);
 					$tmp = str_replace(array_values($this->months), array_keys($this->months), $tmp);
