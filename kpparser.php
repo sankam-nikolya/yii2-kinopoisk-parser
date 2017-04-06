@@ -182,6 +182,7 @@ class Kpparser {
 			'imdb' =>         '#IMDB:\s(.*?)</div>#si',
 			'kinopoisk' =>    '#<div id="block_rating".*?<span class="rating_ball">(.*?)</span>#si',
 			'kp_votes' =>     '#<span style=\"font:100 14px tahoma, verdana\">(.*?)</span>#si',
+			'trailer_url'=>   '#trailerFile.*?\s"(.*)"#i',
 		];
 
 		$new = [];
@@ -267,6 +268,11 @@ class Kpparser {
 					$time->min   = trim(str_replace(' мин.', '', $tmp[0]));
 					$time->hours = trim(end($tmp));
 					$new[ $index ] = $time;
+				} else if($index == 'trailer_url'){
+				    if(preg_match('/getTrailersDomain[\s\S]*?\'(.*)\'/', $main_page, $domains)){
+					$trailer_url = sprintf('https://%s/%s', $domains[1], $matches[1]);
+					$new[$index] = $trailer_url;
+				    }
 				} else {
 					$new[ $index ] = preg_replace('#\\n\s*#si', '', html_entity_decode(strip_tags($matches[1]), ENT_COMPAT | ENT_HTML401, 'UTF-8'));
 					$new[ $index ] = $this->result_clear( $new[ $index ], $index );
