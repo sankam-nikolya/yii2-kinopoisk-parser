@@ -166,6 +166,8 @@ class Kpparser {
 			'producer' =>     '#продюсер</td><td[^>]*>(.*?)</td></tr>#si',
 			'operator' =>     '#оператор</td><td[^>]*>(.*?)</td></tr>#si',
 			'composer' =>     '#композитор</td><td[^>]*>(.*?)</td></tr>#si',
+			'painter' =>      '#художник</td><td[^>]*>(.*?)</td></tr>#si',
+			'editor' =>       '#монтаж</td><td[^>]*>(.*?)</td></tr>#si',
 			'genre' =>        '#жанр</td><td[^>]*>[^<]*<span[^>]*>(.*?)</span>#si',
 			'budget' =>       '#бюджет</td>.*?<a href="/film/[0-9]+/.*?" title="">(.*?)</a>#si',
 			'usa_charges' =>  '#сборы в США</td>.*?<a href="/film/[0-9]+/.*?" title="">(.*?)</a>#si',
@@ -204,7 +206,9 @@ class Kpparser {
 												'script',
 												'producer',
 												'operator',
-												'composer',
+												'composer',,
+												'painter',
+												'editor'
 											])) {
 					if (preg_match_all('#<a href="/name/(\d+)/">(.*?)</a>#si', $matches[1], $matches2, PREG_SET_ORDER)) {
 						$new[$index] = [];
