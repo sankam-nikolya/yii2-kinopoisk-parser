@@ -178,7 +178,7 @@ class Kpparser {
 			'ua_premiere' => '#премьера \(Укр\.\)</td>[^<]*<td[^>]*>.*?<a[^>]*>(.*?)</a>#si',
 			'time' =>         '#id="runtime">(.*?)</td></tr>#si',
 			'age' =>          '#<div class=\"ageLimit(.*?)\">#si',
-			'description' =>  '#<span class=\"_reachbanner_\"><div class=\"brand_words\"[^>]*>(.*?)</div></span>#si',
+			'description' =>  '#itemprop="description"[^>]*>(.*?)<\/div>#si',
 			'imdb' =>         '#IMDB:\s(.*?)</div>#si',
 			'kinopoisk' =>    '#<div id="block_rating".*?<span class="rating_ball">(.*?)</span>#si',
 			'kp_votes' =>     '#<span style=\"font:100 14px tahoma, verdana\">(.*?)</span>#si',
