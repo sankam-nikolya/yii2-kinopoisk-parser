@@ -390,7 +390,7 @@ class Kpparser {
 		$search_page = $this->getPage($url);
 		$search_page = iconv('windows-1251' , 'utf-8', $search_page);
 
-		$search_page = preg_match_all('#Скорее всего, вы ищете:.*?<p class="name">.*?<a href="/level/1/film/(\d+)/sr/1/".*?class="js-serp-metrika".*?>(.*?)</a>.*?<span class="year">(\d{4})</span></p>#si', $search_page, $matches);
+		$search_page = preg_match_all('#<p class="name"><a href="\/level\/1\/film\/\d+\/sr\/1\/".*?data-id="(\d+)"[^>]*>(.*?)<\/a>#si', $search_page, $matches);
 
 		$results = [];
 		if(!empty($matches[1])) {
