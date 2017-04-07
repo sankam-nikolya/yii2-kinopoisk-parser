@@ -2,16 +2,51 @@
 
 namespace sankam\parser;
 
+use Yii;
+use yii\base\Object;
+use yii\base\InvalidConfigException;
 use linslin\yii2\curl;
 
-class Kpparser {
+class Kpparser extends Object
+{
 	const MOVIE = 0;
 	const SERIAL = 1;
 
-	protected $login = false;
-	protected $parser;
+    /**
+     * @var string
+     */
+    public $authLogin;
+    /**
+     * @var string
+     */
+    public $authPassword;
+    /**
+     * @var string
+     */
+    public $cacheComponent = 'cache';
+    /**
+     * @var string
+     */
+    public $componentName = 'kinopoisk';
+    /**
+     * @var int
+     */
+    public $cacheExpire = 3600;
+    /**
+     * @var boolean
+     */
+    public $parseTrailers = false;
 
-	protected $auth_url = 'https://www.kinopoisk.ru/level/30/';
+    /**
+     * @var boolean
+     */
+    protected $login = false;
+    /**
+     * @var object \sankam\parser\Kpparser
+     */
+    protected $parser;
+
+	protected $auth_url = 'https://www.kinopoisk.ru/login';
 	protected $film_url = 'https://www.kinopoisk.ru/film/%s/';
 	protected $trailers_url = 'https://www.kinopoisk.ru/film/%s/video/type/1/';
 	protected $poster_url = 'http://st.kp.yandex.net/images/film_big/%s.jpg';
@@ -37,69 +72,27 @@ class Kpparser {
 			12 => 'декабря',
 		];
 
-	public $type;
+	public function init() {
+        parent::init();
 
-	public $auth_login = 'dimmduh';
-	public $auth_pass = 'gfhjkm03';
+        if(empty($this->authLogin) || empty($this->authPassword)) {
+            throw new InvalidConfigException('`authLogin` and `authPassword` must be set.');
+        }
 
-	public $usecache = true;
-	public $cachedir = __DIR__.'/cache';
-	public $cache_expire = 3600;
+        self::registerTranslations();
 
-	public $parse_trailers = true;
-
-
-	public function __construct($options) {
-		if(is_array($options)) {
-			if(array_key_exists('login', $options)
-				&& !empty($options['login'])) {
-
-				$this->auth_login = $options['login'];
-			}
-
-			if(array_key_exists('pass', $options)
-				&& !empty($options['pass'])) {
-
-				$this->auth_pass = $options['pass'];
-			}
-
-			if(array_key_exists('usecache', $options)) {
-
-				$this->usecache = (boolean) $options['usecache'];
-			}
-
-			if(array_key_exists('cache_dir', $options)
-				&& !empty($options['cache_dir'])) {
-
-				$this->cachedir = $options['cache_dir'];
-			}
-
-			if(array_key_exists('cache_expire', $options)
-				&& !empty($options['cache_expire'])) {
-
-				$this->cache_expire = $options['cache_expire'];
-			}
-
-			if(array_key_exists('parse_trailers', $options)) {
-
-				$this->parse_trailers = (boolean) $options['parse_trailers'];
-			}
-
-		}
-
-		if(!$this->login) {
-			$this->auth();
-		}
-
-	}
+        if(!$this->login) {
+            $this->auth();
+        }
+    }
 
 	protected function auth() {
 		$this->parser = new Snoopy;
 		$this->parser->maxredirs = 2;
 
 		$post_array = array(
-			'shop_user[login]' => 'dimmduh',
-			'shop_user[pass]' => $this->auth_pass,
+			'shop_user[login' => $this->authLogin,
+			'password' => $this->authPassword,
 			'shop_user[mem]' => 'on',
 			'auth' => 'go',
 		);
@@ -112,13 +105,13 @@ class Kpparser {
 		}
 	}
 
-	public function getRating($id) {
-		$this->purgeCache();
+	private function getRating($id) {
+		$key_prefix = 'rating_';
 
-		$results = $this->getCache('rating_'.$id);
+		$rating = $this->getCache($key_prefix . $id);
 
-		if($results) {
-			return json_decode($results);
+		if($rating) {
+			return $rating;
 		}
 
 		$data = $this->getPage(sprintf($this->rating_url, $id));
@@ -129,25 +122,36 @@ class Kpparser {
 
 		$data = simplexml_load_string($data);
 
-		$result = new \StdClass();
+		$rating = new \StdClass();
 
-		$result->id = $id;
-		$result->rating = (float) $data->kp_rating;
-		$result->votes  = (int) $data->kp_rating['num_vote'];
+		$rating->id = $id;
+		$rating->rating = (float) $data->kp_rating;
+		$rating->votes  = (int) $data->kp_rating['num_vote'];
 
-		$this->setCache('rating_'.$id, json_encode($result));
+		$this->setCache($key_prefix . $id, $rating);
 
-		return json_decode($this->getCache('rating_'.$id));
+		return $rating;
+	}
 
+	public function getFilmRating($id) {
+		if(empty($id)) {
+            return Yii::t('kinopoisk', 'The Film id is not specified');
+        }
+
+		return $this->getRating($id);
 	}
 
 	public function getFilmData($id) {
-		$this->purgeCache();
+		if(empty($id)) {
+            return Yii::t('kinopoisk', 'The Film id is not specified');
+        }
 
-		$results = $this->getCache($id);
+		$key_prefix = 'filmData_';
+
+		$results = $this->getCache($key_prefix . $id);
 
 		if($results) {
-			return json_decode($results);
+			return $results;
 		}
 
 		$main_page = $this->getPage(sprintf($this->film_url, $id));
@@ -190,8 +194,13 @@ class Kpparser {
 		foreach($parse as $index => $value){
 			if (preg_match($value, $main_page, $matches)) {
 				if (in_array($index, ['actors_voices','actors_main'])) {
-					if (preg_match_all('#<li itemprop="actors"><a href="/name/(\d+)/">(.*?)</a></li>#si', $matches[1], $matches2, PREG_SET_ORDER)) {
-						$new[$index] = array();
+					if (preg_match_all(
+							'#<li itemprop="actors"><a href="/name/(\d+)/">(.*?)</a></li>#si',
+							$matches[1],
+							$matches2,
+							PREG_SET_ORDER
+						)) {
+						$new[$index] = [];
 						foreach ($matches2 as $match) {
 							if (strip_tags($match[2]) != '...') {
 								$tmp = new \StdClass;
@@ -202,16 +211,12 @@ class Kpparser {
 							}
 						}
 					}
-				} else if (in_array($index, [
-												'director',
-												'script',
-												'producer',
-												'operator',
-												'composer',,
-												'painter',
-												'editor'
-											])) {
-					if (preg_match_all('#<a href="/name/(\d+)/">(.*?)</a>#si', $matches[1], $matches2, PREG_SET_ORDER)) {
+				} else if (in_array($index, ['director','script','producer','operator','composer','painter','editor'])) {
+					if (preg_match_all(
+							'#<a href="/name/(\d+)/">(.*?)</a>#si',
+							$matches[1],
+							$matches2,
+							PREG_SET_ORDER)) {
 						$new[$index] = [];
 						foreach ($matches2 as $match) {
 							if (strip_tags($match[2]) != '...') {
@@ -224,7 +229,12 @@ class Kpparser {
 						}
 					}
 				} else if ($index == 'genre') {
-					if (preg_match_all('#<a href="/lists/.*?/(\d+)/">(.*?)</a>#si',$matches[1], $matches2, PREG_SET_ORDER)) {
+					if (preg_match_all(
+							'#<a href="/lists/.*?/(\d+)/">(.*?)</a>#si',
+							$matches[1],
+							$matches2,
+							PREG_SET_ORDER
+							)) {
 						$new[$index] = [];
 						foreach ($matches2 as $match) {
 							if (strip_tags($match[2]) != '...') {
@@ -269,7 +279,10 @@ class Kpparser {
 					$time->hours = trim(end($tmp));
 					$new[ $index ] = $time;
 				} else if($index == 'trailer_url'){
-				    if(preg_match('/getTrailersDomain[\s\S]*?\'(.*)\'/', $main_page, $domains)){
+				    if(preg_match(
+				    	'/getTrailersDomain[\s\S]*?\'(.*)\'/',
+				    	$main_page,
+				    	$domains)){
 					$trailer_url = sprintf('https://%s/%s', $domains[1], $matches[1]);
 					$new[$index] = $trailer_url;
 				    }
@@ -283,7 +296,7 @@ class Kpparser {
 		$new['poster_url'] = sprintf($this->poster_url, $id);
 		$new['thumb_url'] = sprintf($this->poster_sm_url, $id);
 
-		if($this->parse_trailers) {
+		if($this->parseTrailers) {
 			$trailers_page = $this->getPage(sprintf($this->trailers_url, $id));
 			$trailers_page = iconv('windows-1251' , 'utf-8', $trailers_page);
 
@@ -293,21 +306,35 @@ class Kpparser {
 				'html'	=> '#<!-- ролик -->([\w\W]*?)<!-- \/ролик -->#si'
 			];
 
-			$url = array();
-			$trailer_page = array();
-			$all_trailers = array();
+			$url = [];
+			$trailer_page = [];
+			$all_trailers = [];
 
 			foreach($trailers_parse as $index => $regex){
 				if ($index == 'html') {
-					if (preg_match_all($regex, $trailers_page, $matches, PREG_SET_ORDER)) {
+					if (preg_match_all(
+							$regex,
+							$trailers_page,
+							$matches,
+							PREG_SET_ORDER)) {
 						foreach ($matches as $match) {
 
-							if (preg_match('#<tr>[\w\W]*?<a href="[^"]*" class="all">(.*?)</a>\s*<table[\w\W]*?</table>[\w\W]*?<tr>[\w\W]*?<table[\w\W]*?</table>[\w\W]*?<tr>[\w\W]*?<table[\w\W]*?</td>\s*<td>([\w\W]*?)</table>[\w\W]*?<td[\w\W]*?<td>([\w\W]*?)</table>#si', $match[1], $title_sd_hd_matches)) { // название, стандартное качество и HD
+							if (preg_match(
+									'#<tr>[\w\W]*?<a href="[^"]*" class="all">(.*?)</a>\s*<table[\w\W]*?</table>[\w\W]*?<tr>[\w\W]*?<table[\w\W]*?</table>[\w\W]*?<tr>[\w\W]*?<table[\w\W]*?</td>\s*<td>([\w\W]*?)</table>[\w\W]*?<td[\w\W]*?<td>([\w\W]*?)</table>#si',
+									$match[1],
+									$title_sd_hd_matches
+									)) {
+								// название, стандартное качество и HD
 								$trailer_family = [];
 								$trailer_family['title'] = $title_sd_hd_matches[1];
 								// SD качество
-								$sd = array();
-								if (preg_match_all('#<a href="/getlink\.php[^"]*?link=([^"]*)" class="continue">(.*?)</a>#si', $title_sd_hd_matches[2], $single_videos, PREG_SET_ORDER)) {
+								$sd = [];
+								if (preg_match_all(
+										'#<a href="/getlink\.php[^"]*?link=([^"]*)" class="continue">(.*?)</a>#si',
+										$title_sd_hd_matches[2],
+										$single_videos,
+										PREG_SET_ORDER
+										)) {
 									foreach ($single_videos as $single_video){
 										$sd[] = [
 											'url' => $single_video[1],
@@ -317,8 +344,13 @@ class Kpparser {
 								}
 								$trailer_family['sd'] = $sd;
 								// HD качество
-								$hd = array();
-								if (preg_match_all('#<a href="/getlink\.php[^"]*?link=([^"]*)" class="continue">(.*?)</a>#si', $title_sd_hd_matches[3], $single_videos, PREG_SET_ORDER)) {
+								$hd = [];
+								if (preg_match_all(
+										'#<a href="/getlink\.php[^"]*?link=([^"]*)" class="continue">(.*?)</a>#si',
+										$title_sd_hd_matches[3],
+										$single_videos,
+										PREG_SET_ORDER
+										)) {
 									foreach ($single_videos as $single_video) {
 										$hd[] = [
 											'url' => $single_video[1],
@@ -339,15 +371,22 @@ class Kpparser {
 				}
 			}
 
-			$main_trailer_url = array();
+			$main_trailer_url = [];
 			if (isset($trailer_page[0])) {
 				$main_trailer_page = $this->getPage('https://www.kinopoisk.ru' . $trailer_page[0]);
 				$main_trailer_page = iconv('windows-1251' , 'utf-8', $main_trailer_page);
-				//file_put_contents('main_trailer_'.$id.'.html', $main_trailer_page );
 
-				if (preg_match_all('#<a href="/getlink\.php[^"]*?link=([^"]*)" class="continue">(.*?)</a>#si',$main_trailer_page,$matches,PREG_SET_ORDER)) {
+				if (preg_match_all(
+						'#<a href="/getlink\.php[^"]*?link=([^"]*)" class="continue">(.*?)</a>#si',
+						$main_trailer_page,
+						$matches,
+						PREG_SET_ORDER
+						)) {
 					foreach ($matches as $match) {
-						$main_trailer_url[] = array('description'=>strip_tags($match[2]),'url'=>$match[1]);
+						$main_trailer_url[] = [
+							'description' => strip_tags($match[2]),
+							'url' => $match[1]
+						];
 					}
 				}
 			}
@@ -356,23 +395,22 @@ class Kpparser {
 			$new['trailers'] = $all_trailers;
 		}
 
-		if($this->usecache){
-		    $this->setCache($id, json_encode($new));
-		}
+		$this->setCache($key_prefix . $id, $new);
+
 		return $new;
 	}
 
-	public function search($title, $year = null, $type = self::MOVIE) {
-		$this->purgeCache();
+	private function search($title, $year = null, $type = self::MOVIE) {
+		$key_prefix = 'search_';
+		$key_value = $_title . '_' . (int) $year . '_' . $type;
+
+		$results = $this->getCache($key_prefix . $key_value);
 
 		$_title = $title;
-
-		$results = $this->getCache('search_'.$_title.'_'.(int) $year . '_' . $type);
-
 		$title = urlencode($title);
 
 		if($results) {
-			return json_decode($results);
+			return $results;
 		}
 
 		if($type == self::MOVIE) {
@@ -390,7 +428,11 @@ class Kpparser {
 		$search_page = $this->getPage($url);
 		$search_page = iconv('windows-1251' , 'utf-8', $search_page);
 
-		$search_page = preg_match_all('#<p class="name"><a href="\/level\/1\/film\/\d+\/sr\/1\/".*?data-id="(\d+)"[^>]*>(.*?)<\/a>.*?<span class="year">(\d{4})</span>#si', $search_page, $matches);
+		$search_page = preg_match_all(
+			'#<p class="name"><a href="\/level\/1\/film\/\d+\/sr\/1\/".*?data-id="(\d+)"[^>]*>(.*?)<\/a>.*?<span class="year">(\d{4})</span>#si',
+			$search_page,
+			$matches
+		);
 
 		$results = [];
 		if(!empty($matches[1])) {
@@ -407,10 +449,17 @@ class Kpparser {
 			return false;
 		}
 
-		$this->setCache('search_'.$_title.'_'.(int) $year . '_' . $type, json_encode($results));
+		$this->setCache($key_prefix . $key_value, $results);
 
 		return $results;
+	}
 
+	public function find($title, $year = null, $type = self::MOVIE) {
+		if(empty($title)) {
+            return Yii::t('kinopoisk', 'The Film title is not specified');
+        }
+
+		return $this->search($title, $year, $type);
 	}
 
 	private function getPage($url, $type = 'get') {
@@ -462,52 +511,36 @@ class Kpparser {
 	}
 
 	private function getCache($key) {
-		if(!$this->usecache) {
-			return false;
-		}
+		$cacheKey = [
+			'Kinopoisk',
+			$key
+		];
 
-		$cleanKey = $this->sanitiseKey($key);
-
-		$fname = $this->cachedir . '/' . $cleanKey;
-		if (!file_exists($fname)) {
-			return null;
-		}
-
-		return file_get_contents($fname);
+		return Yii::$app->{$this->cacheComponent}->get($cacheKey);
 	}
 
 	private function setCache($key, $value) {
-		if(!$this->usecache) {
-			return false;
-		}
+		$cacheKey = [
+			'Kinopoisk',
+			$key
+		];
 
-		$cleanKey = $this->sanitiseKey($key);
-
-		$fname = $this->cachedir . '/' . $cleanKey;
-		file_put_contents($fname, $value);
-
-		return true;
+		Yii::$app->{$this->cacheComponent}->set(
+			$cacheKey,
+			$value,
+			$this->cacheExpire
+		);
 	}
 
-	private function purgeCache() {
-		$cacheDir = $this->cachedir . '/';
-
-		$thisdir = dir($cacheDir);
-		$now = time();
-		while ($file = $thisdir->read()) {
-			if ($file != "." && $file != ".." && $file != ".placeholder") {
-			$fname = $cacheDir . $file;
-			if (is_dir($fname))
-				continue;
-			$mod = @filemtime($fname);
-			if ($mod && ($now - $mod > $this->cache_expire))
-				unlink($fname);
-			}
-		}
-	}
-
-	private function sanitiseKey($key) {
-		return str_replace(array('/', '\\', '?', '%', '*', ':', '|', '"', '<', '>'), '.', $key);
-	}
+	private static function registerTranslations()
+    {
+        if (!isset(Yii::$app->i18n->translations['kinopoisk'])) {
+            Yii::$app->i18n->translations['kinopoisk'] = [
+                'class' => 'yii\i18n\PhpMessageSource',
+                'sourceLanguage' => 'en',
+                'basePath' => '@sankam/parser/messages',
+            ];
+        }
+    }
 
 }

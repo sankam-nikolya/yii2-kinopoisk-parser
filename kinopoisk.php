@@ -2,96 +2,75 @@
 namespace sankam\parser;
 
 use Yii;
-use yii\helpers\BaseFileHelper;
+use yii\base\Component;
 
-class Kinopoisk
+class Kinopoisk extends Component
 {
-    const MOVIE = 0;
-    const SERIAL = 1;
+    /**
+     * @var string
+     */
+    public $authLogin;
+    /**
+     * @var string
+     */
+    public $authPassword;
+    /**
+     * @var string
+     */
+    public $cacheComponent = 'cache';
+    /**
+     * @var string
+     */
+    public $componentName = 'kinopoisk';
+    /**
+     * @var boolean
+     */
+    public $useCache = true;
+    /**
+     * @var int
+     */
+    public $cacheExpire = 3600;
+    /**
+     * @var boolean
+     */
+    public $parseTrailers = false;
+    /**
+     * @var object \sankam\parser\Kpparser
+     */
+    protected $parser;
 
-    public static $login = 'viktor_r';
-    public static $pass = 'viktor_r951';
-    public static $cache_dir = '@runtime/kinopoisk';
-    public static $use_cache = true;
-    public static $cache_expire = 3600;
-    public static $parse_trailers = false;
+    public function init() {
+        parent::init();
 
-    public function getFilmData($id) {
-        if(empty($id)) {
-            return self::t('messages', 'The Film id is not specified');
+        if(empty($this->authLogin)) {
+            throw new InvalidConfigException('`authLogin` must be set.');
         }
 
-        $parser = self::Init();
+        if(empty($this->authPassword)) {
+            throw new InvalidConfigException('`authPassword` must be set.');
+        }
 
-        $data = $parser->getFilmData($id);
+        $this->parser = Yii::createObject([
+            'class' => Kpparser::className(),
+            'authLogin' => $this->authLogin,
+            'authPassword' => $this->authPassword,
+            'cacheComponent' => $this->cacheComponent,
+            'componentName' => $this->componentName,
+            'cacheExpire' => $this->cacheExpire,
+            'parseTrailers' => $this->parseTrailers
+        ]);
+    }
 
-        return $data;
+    public function getFilmData($id) {
+        return $this->parser->getFilmData($id);
     }
 
     public function getFilmRating($id) {
-        if(empty($id)) {
-            return self::t('messages', 'The Film id is not specified');
-        }
-
-        $parser = self::Init();
-
-        $data = $parser->getRating($id);
-
-        return $data;
+        return $this->parser->getFilmRating($id);
     }
 
-    public function find($title, $year = null, $type = self::MOVIE) {
-        if(empty($title)) {
-            return self::t('messages', 'The Film title is not specified');
-        }
-
-        $parser = self::Init();
-
-        $data = $parser->search($title, $year, $type);
-
-        return $data;
-    }
-
-    private function Init() {
-        $options = [
-                'login' => self::$login,
-                'pass' => self::$pass,
-                'usecache' => self::$use_cache,
-                'cache_dir' => self::cacheDir(self::$cache_dir),
-                'cache_expire' => self::$cache_expire,
-                'parse_trailers' => self::$parse_trailers
-            ];
-
-        $parser =  new Kpparser($options);
-
-        return $parser;
-    }
-
-    private function cacheDir() {
-        $dir = Yii::getAlias(self::$cache_dir);
-
-        if(!file_exists($dir)) {
-            BaseFileHelper::createDirectory($dir, '0755');
-        }
-
-        return $dir;
-    }
-
-    public static function registerTranslations()
-    {
-        $i18n = \Yii::$app->i18n;
-        $i18n->translations['menu/*'] = [
-            'class' => 'yii\i18n\PhpMessageSource',
-            'sourceLanguage' => 'en',
-            'basePath' => '@vendor/sankam-nikolya/yii2-kinopoisk-parser/messages',
-            'fileMap' => [
-                'kinopoisk/messages' => 'messages.php',
-            ],
-        ];
-    }
-    public static function t($category, $message, $params = [], $language = null)
-    {
-        return \Yii::t('kinopoisk/' . $category, $message, $params, $language);
+    public function find($title, $year = null, $type = Kpparser::MOVIE) {
+        return $this->parser->find($title, $year, $type);
     }
 }
 
