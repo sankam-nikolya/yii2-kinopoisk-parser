@@ -3,6 +3,7 @@
     "description": "kinopoisk Parser for Yii2",
     "type": "yii2-extension",
     "keywords": ["yii2","extension","kinopoisk","parser"],
+    "version": "0.0.3",
     "license": "MIT",
     "authors": [
         {
