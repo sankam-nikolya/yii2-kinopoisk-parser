@@ -356,10 +356,11 @@ class Kpparser {
 			$new['trailers'] = $all_trailers;
 		}
 
+		$new = json_encode($new);
 		if($this->usecache){
-		    $this->setCache($id, json_encode($new));
+		    $this->setCache($id, $new);
 		}
-		return $new;
+		return json_decode($new);
 	}
 
 	public function search($title, $year = null, $type = self::MOVIE) {
