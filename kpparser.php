@@ -416,6 +416,11 @@ class Kpparser {
 
 	private function getPage($url, $type = 'get') {
         $curl = new curl\Curl();
+		$curl->setOption(CURLOPT_COOKIESESSION, true);
+        $curl->setOption(CURLOPT_COOKIEJAR, $this->cachedir.DIRECTORY_SEPARATOR.'cookies');
+        $curl->setOption(CURLOPT_COOKIEFILE, $this->cachedir.DIRECTORY_SEPARATOR.'cookies');
+
+        $curl->setOption(CURLOPT_USERAGENT , 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 YaBrowser/17.3.1.840 Yowser/2.5 Safari/537.36');
 
         $response = $curl->{$type}($url);
 
