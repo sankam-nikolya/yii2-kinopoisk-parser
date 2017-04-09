@@ -207,7 +207,7 @@ class Kpparser {
 												'script',
 												'producer',
 												'operator',
-												'composer',,
+												'composer',
 												'painter',
 												'editor'
 											])) {
